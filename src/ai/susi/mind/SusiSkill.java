@@ -26,6 +26,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -124,6 +125,9 @@ public class SusiSkill {
                                     if (type.equals(SusiAction.RenderType.table.toString()) && boa.has("columns")) {
                                         actions.put(SusiAction.tableAction(boa.getJSONObject("columns"),
                                                     boa.has("length") ? boa.getInt("length") : -1));
+                                    } else
+                                    if (type.equals(SusiAction.RenderType.image_show.toString()) && boa.has("format")) {
+                                        actions.put(SusiAction.imageShowAction(boa.getString("format")));
                                     } else
                                     if (type.equals(SusiAction.RenderType.piechart.toString()) &&
                                             boa.has("total") && boa.has("key") &&

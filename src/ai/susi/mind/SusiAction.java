@@ -19,6 +19,7 @@
 
 package ai.susi.mind;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Random;
@@ -124,7 +125,20 @@ public class SusiAction {
             .put("count", count);
         return json;
     }
-    
+
+    /**
+     * image_show action: Shows an image coming from the response
+     * @param format of the image. This will be one out of png, jpeg, gif or any other valid image type.
+     * @return the action
+     */
+
+    public static JSONObject imageShowAction(String format) {
+        JSONObject json = new JSONObject(true)
+                .put("type", RenderType.image_show.name())
+                .put("format", format);
+        return json;
+    }
+
     /**
      * piechart action: draw a pie chart
      * @param total the total count of the sum of all pie shares, i.e. 100 if the shares are percent values
