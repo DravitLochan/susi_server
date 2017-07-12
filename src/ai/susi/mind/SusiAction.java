@@ -150,13 +150,14 @@ public class SusiAction {
      * @param linkName the name of the link column
      * @return the action
      */
-    public static JSONObject rssAction(String titleName, String descriptionName, String linkName, int count) {
+    public static JSONObject rssAction(String titleName, String descriptionName, String linkName, int count, String image) {
         JSONObject json = new JSONObject(true)
             .put("type", RenderType.rss.name())
             .put("title", titleName)
             .put("description", descriptionName)
             .put("link", linkName)
-            .put("count", count);
+            .put("count", count)
+            .put("image", image);
         return json;
     }
     
