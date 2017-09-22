@@ -19,6 +19,21 @@
 
 package ai.susi.server.api.cms;
 
+import ai.susi.Caretaker;
+import ai.susi.DAO;
+import ai.susi.server.FileHandler;
+import ai.susi.server.Query;
+import ai.susi.server.RemoteAccess;
+import ai.susi.tools.TimeoutMatcher;
+import ai.susi.tools.UTF8;
+
+import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.WriteListener;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -31,32 +46,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.regex.Pattern;
-
-import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.WriteListener;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import org.eclipse.jetty.util.log.Log;
-
-import ai.susi.Caretaker;
-import ai.susi.server.FileHandler;
-import ai.susi.server.Query;
-import ai.susi.server.RemoteAccess;
-import ai.susi.tools.TimeoutMatcher;
-import ai.susi.tools.UTF8;
 
 public class ThreaddumpServlet extends HttpServlet {
 
@@ -90,13 +81,13 @@ public class ThreaddumpServlet extends HttpServlet {
                         try {
                             getMethod.invoke(servletClass.newInstance(), request, new DummyResponse());
                         } catch (IllegalArgumentException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
-                        	Log.getLog().warn(e);
+                        	DAO.severe(e);
                         }
                     }
                 });
                 servletThread.start();
             } catch (ClassNotFoundException | NoSuchMethodException | SecurityException e) {
-            	Log.getLog().warn(e);
+            	DAO.severe(e);
             }
             long sleep = post.get("sleep", 0L);
             if (sleep > 0) try {Thread.sleep(sleep);} catch (InterruptedException e) {}
