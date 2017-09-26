@@ -22,7 +22,6 @@ package ai.susi.server.api.aaa;
 import ai.susi.DAO;
 import ai.susi.json.JsonObjectWithDefault;
 import ai.susi.server.*;
-import org.eclipse.jetty.client.api.Request;
 import org.json.JSONObject;
 
 import javax.servlet.ServletException;
@@ -43,12 +42,12 @@ public class UploadSettingsService extends AbstractAPIHandler implements APIHand
     }
 
     @Override
-    public BaseUserRole getMinimalBaseUserRole() {
-        return BaseUserRole.ADMIN;
+    public UserRole getMinimalUserRole() {
+        return UserRole.ADMIN;
     }
 
     @Override
-    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
         return null;
     }
 
