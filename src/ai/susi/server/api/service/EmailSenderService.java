@@ -19,10 +19,17 @@
 
 package ai.susi.server.api.service;
 
+import org.json.JSONObject;
+
 import ai.susi.EmailHandler;
 import ai.susi.json.JsonObjectWithDefault;
-import ai.susi.server.*;
-import org.json.JSONObject;
+import ai.susi.server.APIException;
+import ai.susi.server.APIHandler;
+import ai.susi.server.AbstractAPIHandler;
+import ai.susi.server.Authorization;
+import ai.susi.server.BaseUserRole;
+import ai.susi.server.Query;
+import ai.susi.server.ServiceResponse;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -37,10 +44,10 @@ public class EmailSenderService extends AbstractAPIHandler implements APIHandler
     private static final long serialVersionUID = 857847830309879111L;
 
     @Override
-    public UserRole getMinimalUserRole() { return UserRole.ANONYMOUS; }
+    public BaseUserRole getMinimalBaseUserRole() { return BaseUserRole.ANONYMOUS; }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 

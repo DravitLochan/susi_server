@@ -25,6 +25,8 @@ import ai.susi.server.*;
 import org.json.JSONObject;
 
 import javax.servlet.http.HttpServletResponse;
+import java.util.Iterator;
+import java.util.Set;
 
 /**
  * This Servlets returns all the group details of all the groups created.
@@ -38,12 +40,12 @@ public class GetAllGroups extends AbstractAPIHandler implements APIHandler {
     private static final long serialVersionUID = -179412273153306443L;
 
     @Override
-    public UserRole getMinimalUserRole() {
-        return UserRole.ADMIN;
+    public BaseUserRole getMinimalBaseUserRole() {
+        return BaseUserRole.ADMIN;
     }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 

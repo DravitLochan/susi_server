@@ -29,7 +29,8 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 
-import ai.susi.DAO;
+import org.eclipse.jetty.util.log.Log;
+
 import ai.susi.json.JsonFile;
 import ai.susi.tools.IO;
 
@@ -133,7 +134,7 @@ public class Settings extends JsonFile {
             return true;
         }
         catch(NoSuchAlgorithmException | InvalidKeySpecException e){
-        	DAO.severe(e);
+        	Log.getLog().warn(e);
         }
         return false;
     }

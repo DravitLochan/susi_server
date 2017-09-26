@@ -20,11 +20,14 @@
 package ai.susi.server.api.cms;
 
 import ai.susi.DAO;
+
 import ai.susi.json.JsonObjectWithDefault;
 import ai.susi.server.*;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -39,7 +42,7 @@ import java.io.IOException;
  * This Service Adds a API Endpoint to return history of an skill
  * This accepts 4 parameters: - Model, Group, Language and Skill Name
  * Can be tested on : -
- * http://127.0.0.1:4000/cms/getSkillHistory.json?model=general&group=Knowledge&language=en&skill=bitcoin
+ * http://127.0.0.1:4000/cms/getSkillHistory.json?model=general&group=knowledge&language=en&skill=bitcoin
  */
 public class HistorySkillService extends AbstractAPIHandler implements APIHandler {
 
@@ -48,12 +51,12 @@ public class HistorySkillService extends AbstractAPIHandler implements APIHandle
     Boolean success=false;
 
     @Override
-    public UserRole getMinimalUserRole() {
-        return UserRole.ANONYMOUS;
+    public BaseUserRole getMinimalBaseUserRole() {
+        return BaseUserRole.ANONYMOUS;
     }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 
@@ -75,7 +78,7 @@ public class HistorySkillService extends AbstractAPIHandler implements APIHandle
 
         String model_name = call.get("model", "general");
         File model = new File(DAO.model_watch_dir, model_name);
-        String group_name = call.get("group", "Knowledge");
+        String group_name = call.get("group", "knowledge");
         File group = new File(model, group_name);
         String language_name = call.get("language", "en");
         File language = new File(group, language_name);
@@ -85,39 +88,50 @@ public class HistorySkillService extends AbstractAPIHandler implements APIHandle
         commitsArray = new JSONArray();
         String path = skill.getPath().replace(DAO.model_watch_dir.toString(), "models");
         //Add to git
-        try (Git git = DAO.getGit()) {
+        FileRepositoryBuilder builder = new FileRepositoryBuilder();
+        Repository repository = null;
+        try {
+            repository = builder.setGitDir((DAO.susi_skill_repo))
+                    .readEnvironment() // scan environment GIT_* variables
+                    .findGitDir() // scan up the file system tree
+                    .build();
 
-            Iterable<RevCommit> logs;
+            try (Git git = new Git(repository)) {
 
-            logs = git.log()
-                    .addPath(path)
-                    .call();
-            int i = 0;
-            for (RevCommit rev : logs) {
-                commit = new JSONObject();
-                commit.put("commitRev", rev);
-                commit.put("commitName", rev.getName());
-                commit.put("commitID", rev.getId().getName());
-                commit.put("commit_message", rev.getShortMessage());
-                commit.put("author",rev.getAuthorIdent().getName());
-                commit.put("commitDate",rev.getAuthorIdent().getWhen());
-                commit.put("author_mail",rev.getAuthorIdent().getEmailAddress());
-                commitsArray.put(i, commit);
-                i++;
+                Iterable<RevCommit> logs;
+
+                logs = git.log()
+                        .addPath(path)
+                        .call();
+                int i = 0;
+                for (RevCommit rev : logs) {
+                    commit = new JSONObject();
+                    commit.put("commitRev", rev);
+                    commit.put("commitName", rev.getName());
+                    commit.put("commitID", rev.getId().getName());
+                    commit.put("commit_message", rev.getShortMessage());
+                    commit.put("author",rev.getAuthorIdent().getName());
+                    commitsArray.put(i, commit);
+                    i++;
+                }
+                success=true;
+
+            } catch (GitAPIException e) {
+                e.printStackTrace();
+                success=false;
+
             }
-            success=true;
-
-        } catch (IOException | GitAPIException e) {
+        } catch (IOException e) {
             e.printStackTrace();
             success=false;
-
         }
         if(commitsArray.length()==0){
             success=false;
         }
         JSONObject result = new JSONObject();
         result.put("commits",commitsArray);
-        result.put("accepted",success);
+        result.put("success",success);
+
         return new ServiceResponse(result);
     }
 }

@@ -23,20 +23,18 @@ public class GroupListService extends AbstractAPIHandler implements APIHandler {
     }
 
     @Override
-    public UserRole getMinimalUserRole() {
+    public BaseUserRole getMinimalBaseUserRole() {
         return null;
     }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 
     @Override
     public ServiceResponse serviceImpl(Query call, HttpServletResponse response, Authorization rights, JsonObjectWithDefault permissions) throws APIException {
 
-        JSONObject json = new JSONObject(true);
-        json.put("accepted", false);
         String model_name = call.get("model", "general");
         File model = new File(DAO.model_watch_dir, model_name);
 
@@ -46,11 +44,7 @@ public class GroupListService extends AbstractAPIHandler implements APIHandler {
                 return new File(file, s).isDirectory();
             }
         });
-        JSONObject result = new JSONObject();
-        result.put("accepted", true);
         JSONArray groupsArray = new JSONArray(groups);
-        result.put("groups",groupsArray);
-        result.put("message", "Success: Fetched group list");
-        return new ServiceResponse(result);
+        return new ServiceResponse(groupsArray);
     }
 }

@@ -14,11 +14,8 @@ import java.lang.reflect.Constructor;
 /**
  * Created by chetankaushik on 30/05/17.
  * This is a servlet that is used to change the role of any user
- * Anyone with role admin or above admin can access this servlet
- *
- * * Sample request :
- * http://127.0.0.1:4000/aaa/changeRoles?user=example@example.com&user=admin
- * two post/get parameters-
+ * This requires Admin login
+ * http://127.0.0.1:4000/aaa/changeRoles this accepts two post parameters-
  * 1. user    --> The username of the user whose role is to be modified
  * 2. role    --> the new role of the user
  */
@@ -27,18 +24,18 @@ public class ChangeUserRoles extends AbstractAPIHandler implements APIHandler {
     private static final long serialVersionUID = -1432553481906185711L;
 
     @Override
-    public UserRole getMinimalUserRole() {
-        return UserRole.ADMIN;
+    public BaseUserRole getMinimalBaseUserRole() {
+        return BaseUserRole.ADMIN;
     }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 
     @Override
     public String getAPIPath() {
-        return "/aaa/changeRoles.json";
+        return "/aaa/changeRoles";
     }
 
 
@@ -71,7 +68,7 @@ public class ChangeUserRoles extends AbstractAPIHandler implements APIHandler {
             }
 
             if (service instanceof AbstractAPIHandler) {
-                result.put("servicePermissions", authorization.getPermission());
+                result.put("servicePermissions", authorization.getPermissions((AbstractAPIHandler) service));
                 result.put("accepted", true);
                 result.put("message", "Successfully processed request");
                 return new ServiceResponse(result);
@@ -88,66 +85,34 @@ public class ChangeUserRoles extends AbstractAPIHandler implements APIHandler {
             result.put("message", "Successfully processed request");
             return new ServiceResponse(result);
         } else if (query.get("getUserRolePermission", false)) {
-            result.put("userRolePermissions", authorization.getPermission());
+            result.put("userRolePermissions", authorization.getUserRole().getPermissionOverrides());
             result.put("accepted", true);
             result.put("message", "Successfully processed request");
             return new ServiceResponse(result);
         } else {
-            // Accept POST/GET params
+            // Accept POST params
             String userTobeUpgraded = query.get("user", null);
             String upgradedRole = query.get("role", "user");
-            upgradedRole = upgradedRole.toLowerCase();
-            UserRole userRole;
-
-            switch (upgradedRole) {
-                case "bot":
-                    userRole = UserRole.BOT;
-                    break;
-                case "anonymous":
-                    userRole = UserRole.ANONYMOUS;
-                    break;
-                case "user":
-                    userRole = UserRole.USER;
-                    break;
-                case "reviewer":
-                    userRole = UserRole.REVIEWER;
-                    break;
-                case "accountcreator":
-                    userRole = UserRole.ACCOUNTCREATOR;
-                    break;
-                case "admin":
-                    userRole = UserRole.ADMIN;
-                    break;
-                case "bureaucrat":
-                    userRole = UserRole.BUREAUCRAT;
-                    break;
-                default:
-                    userRole = null;
-            }
             // Validation
             if (userTobeUpgraded == null) {
                 throw new APIException(400, "Bad username");
             }
-
-            //generate client
-            ClientCredential credential = new ClientCredential(ClientCredential.Type.passwd_login, userTobeUpgraded);
-            ClientIdentity identity = new ClientIdentity(ClientIdentity.Type.email, credential.getName());
+            ClientIdentity identity = new ClientIdentity(userTobeUpgraded);
             if (!DAO.hasAuthorization(identity)) {
                 throw new APIException(400, "Username not found");
             }
+            if (!DAO.userRoles.has(upgradedRole))
+                throw new APIException(400, "Specified User Role not found");
 
             // Update the local database
             Authorization auth = DAO.getAuthorization(identity);
-            try {
-                auth.setUserRole(userRole);
-            } catch (IllegalArgumentException e) {
-                throw new APIException(400, "role not found");
-            }
-
+            UserRole ur = new UserRole(upgradedRole, BaseUserRole.ANONYMOUS, null, null);
+            auth.setUserRole(ur);
+            
             // Print Response
             result.put("newDetails", auth.getJSON());
             result.put("accepted", true);
-            result.put("message", "User role changed successfully!!");
+            result.put("message", "Successfully processed request");
             return new ServiceResponse(result);
         }
     }

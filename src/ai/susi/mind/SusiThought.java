@@ -406,26 +406,12 @@ public class SusiThought extends JSONObject {
                 JSONObject row = table.getJSONObject(rownum);
                 for (String key: row.keySet()) {
                     int i;
-                    Object value = row.get(key);
-                    if (value instanceof JSONObject) {
-                        JSONObject subobj = (JSONObject) value;
-                        for (String subkey: subobj.keySet()) {
-                            while ((i = statement.indexOf("$" + key + "." + subkey + "$")) >= 0) {
-                                String substitution = subobj.get(subkey).toString();
-                                if (urlencode) try {
-                                    substitution = URLEncoder.encode(substitution, "UTF-8");
-                                } catch (UnsupportedEncodingException e) {}
-                                statement = statement.substring(0, i) + substitution + statement.substring(i + key.length() + subkey.length() + 3);
-                            }
-                        }
-                    } else {
-                        while ((i = statement.indexOf("$" + key + "$")) >= 0) {
-                            String substitution = value.toString();
-                            if (urlencode) try {
-                                substitution = URLEncoder.encode(substitution, "UTF-8");
-                            } catch (UnsupportedEncodingException e) {}
-                            statement = statement.substring(0, i) + substitution + statement.substring(i + key.length() + 2);
-                        }
+                    while ((i = statement.indexOf("$" + key + "$")) >= 0) {
+                        String substitution = row.get(key).toString();
+                        if (urlencode) try {
+                            substitution = URLEncoder.encode(substitution, "UTF-8");
+                        } catch (UnsupportedEncodingException e) {}
+                        statement = statement.substring(0, i) + substitution + statement.substring(i + key.length() + 2);
                     }
                     if (statement.indexOf('$') < 0) break;
                 }

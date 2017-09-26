@@ -21,10 +21,17 @@ package ai.susi.server.api.cms;
 
 import ai.susi.DAO;
 import ai.susi.json.JsonObjectWithDefault;
-import ai.susi.server.*;
+import ai.susi.server.APIHandler;
+import ai.susi.server.AbstractAPIHandler;
+import ai.susi.server.Authorization;
+import ai.susi.server.BaseUserRole;
+import ai.susi.server.Query;
+import ai.susi.server.ServiceResponse;
+
 import org.json.JSONObject;
 
 import javax.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
@@ -38,10 +45,10 @@ public class ExampleSkillService extends AbstractAPIHandler implements APIHandle
     private static final long serialVersionUID = -8691223678852307876L;
 
     @Override
-    public UserRole getMinimalUserRole() { return UserRole.ANONYMOUS; }
+    public BaseUserRole getMinimalBaseUserRole() { return BaseUserRole.ANONYMOUS; }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 
@@ -78,8 +85,6 @@ public class ExampleSkillService extends AbstractAPIHandler implements APIHandle
                 .put("group", group)
                 .put("language", language)
                 .put("examples", examples);
-        json.put("accepted", true);
-        json.put("message", "Success: Examples fetched");
         return new ServiceResponse(json);
     }
 

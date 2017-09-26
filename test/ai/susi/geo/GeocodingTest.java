@@ -1,6 +1,8 @@
 package ai.susi.geo;
 
 import static org.junit.Assert.*;
+import static sun.misc.Version.println;
+
 import java.io.IOException;
 import java.net.URISyntaxException;
 

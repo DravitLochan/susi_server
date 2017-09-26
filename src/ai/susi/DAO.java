@@ -20,9 +20,7 @@
 package ai.susi;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -50,23 +48,13 @@ import ai.susi.server.Authorization;
 import ai.susi.server.ClientCredential;
 import ai.susi.server.ClientIdentity;
 import ai.susi.server.Settings;
+import ai.susi.server.UserRoles;
 
 import ai.susi.tools.IO;
 import ai.susi.tools.OS;
 
-import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.MergeResult;
-import org.eclipse.jgit.api.PullResult;
-import org.eclipse.jgit.api.PushCommand;
-import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.lib.PersonIdent;
-import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
-import org.eclipse.jgit.transport.RefSpec;
-import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
+import org.eclipse.jetty.util.log.Log;
 import org.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The Data Access Object for the message project.
@@ -90,19 +78,17 @@ import org.slf4j.LoggerFactory;
 public class DAO {
 
     private final static String ACCESS_DUMP_FILE_PREFIX = "access_";
-    public  static File conf_dir, bin_dir, html_dir, data_dir, susi_memory_dir, model_watch_dir, susi_skill_repo, deleted_skill_dir;
-    public static String conflictsPlaceholder = "%CONFLICTS%";
+    public  static File conf_dir, bin_dir, html_dir, data_dir, susi_memory_dir, model_watch_dir, susi_skill_repo;
     private static File external_data, assets, dictionaries;
     private static Settings public_settings, private_settings;
     public  static AccessTracker access;
     private static Map<String, String> config = new HashMap<>();
-    public static Boolean pullStatus=true;
-    private static Logger logger = LoggerFactory.getLogger(DAO.class);
     
     // AAA Schema for server usage
     private static JsonTray authentication;
     private static JsonTray authorization;
     private static JsonTray accounting;
+    public  static UserRoles userRoles;
     public  static JsonTray passwordreset;
     private static JsonFile login_keys;
     public static JsonTray group;
@@ -127,12 +113,6 @@ public class DAO {
         html_dir = new File("html");
         data_dir = dataPath.toFile().getAbsoluteFile();
         susi_memory_dir = new File(data_dir, "susi");
-        // TODO:
-        deleted_skill_dir = new File(new File(DAO.data_dir, "deleted_skill_dir"), "models");
-
-        if(!deleted_skill_dir.exists()){
-            DAO.deleted_skill_dir.mkdirs();
-        }
         model_watch_dir = new File(new File(data_dir.getParentFile().getParentFile(), "susi_skill_data"), "models");
         susi_skill_repo = new File(data_dir.getParentFile().getParentFile(), "susi_skill_data/.git");
 
@@ -141,11 +121,6 @@ public class DAO {
         susi = model_watch_dir.exists() ?
                 new SusiMind(susi_memory_dir, susiinitpath, model_watch_dir) :
                 new SusiMind(susi_memory_dir, susiinitpath);
-        new Thread() {
-            public void run() {
-                susi.initializeUnanswered();
-            }
-        }.start();
         String susi_boilerplate_name = "susi_cognition_boilerplate.json";
         File susi_boilerplate_file = new File(susi_memory_dir, susi_boilerplate_name);
         if (!susi_boilerplate_file.exists()) Files.copy(new File(conf_dir, "susi/" + susi_boilerplate_name + ".example"), susi_boilerplate_file);
@@ -223,6 +198,21 @@ public class DAO {
         OS.protectPath(skillRating_per);
         OS.protectPath(skillRating_vol);
 
+
+        Log.getLog().info("Initializing user roles");
+
+        Path userRoles_path = settings_dir.resolve("userRoles.json");
+        userRoles = new UserRoles(new JsonFile(userRoles_path.toFile()));
+        OS.protectPath(userRoles_path);
+
+        try{
+            userRoles.loadUserRolesFromObject();
+            Log.getLog().info("Loaded user roles from file");
+        }catch (IllegalArgumentException e){
+            Log.getLog().info("Load default user roles");
+            userRoles.loadDefaultUserRoles();
+        }
+
         // open index
         Path index_dir = dataPath.resolve("index");
         if (index_dir.toFile().exists()) OS.protectPath(index_dir); // no other permissions to this path
@@ -240,27 +230,6 @@ public class DAO {
         access = new AccessTracker(log_dump_dir.toFile(), ACCESS_DUMP_FILE_PREFIX, 60000, 3000);
         access.start(); // start monitor
 
-        log("Starting Skill Data pull thread");
-        Thread pullThread = new Thread() {
-            @Override
-            public void run() {
-                while (DAO.pullStatus) {
-                    try {
-                        Thread.sleep(getConfig("skill_repo.pull_delay", 60000));
-                    } catch (InterruptedException e) {
-                        break;
-                    }
-                    try {
-                        DAO.pull(DAO.getGit());
-                    } catch (Exception e) {
-                        DAO.pullStatus =false;
-                        severe("SKILL PULL THREAD", e);
-                    }
-                }
-            }
-        };
-        pullThread.start();
-
         log("finished DAO initialization");
     }
     
@@ -275,7 +244,7 @@ public class DAO {
      * close all objects in this class
      */
     public static void close() {
-        log("closing DAO");
+        Log.getLog().info("closing DAO");
         
         // close the tracker
         access.close();
@@ -286,7 +255,7 @@ public class DAO {
         passwordreset.close();
         accounting.close();
 
-        log("closed DAO");
+        Log.getLog().info("closed DAO");
     }
     
     /**
@@ -335,19 +304,19 @@ public class DAO {
     public static final Random random = new Random(System.currentTimeMillis());
 
     public static void log(String line) {
-        logger.info(line);
+        Log.getLog().info(line);
     }
 
     public static void severe(String line) {
-        logger.warn(line);
+        Log.getLog().warn(line);
     }
 
     public static void severe(String line, Throwable e) {
-        logger.warn(line, e);
+        Log.getLog().warn(line, e);
     }
     
     public static void severe(Throwable e) {
-        logger.warn("", e);
+        Log.getLog().warn(e);
     }
     
 
@@ -388,9 +357,9 @@ public class DAO {
 	public static void deleteAuthentication(@Nonnull ClientCredential credential) {
 		authentication.remove(credential.toString());
 	}
-
+	
 	public static Authorization getAuthorization(@Nonnull ClientIdentity identity) {
-		 return new Authorization(identity, authorization);
+		 return new Authorization(identity, authorization, userRoles);
 	}
 	
 	public static boolean hasAuthorization(@Nonnull ClientIdentity credential) {
@@ -400,16 +369,10 @@ public class DAO {
 	public static Collection<ClientIdentity> getAuthorizedClients() {
 		ArrayList<ClientIdentity> i = new ArrayList<>();
 		for (String id: authorization.keys()) {
-		    if(id.contains("host"))
-		        continue;
 			i.add(new ClientIdentity(id));
 		}
 		return i;
 	}
-
-	public static void deleteAuthorization(@Nonnull ClientIdentity credential) {
-	    authorization.remove(credential.toString());
-    }
     
     public static Accounting getAccounting(@Nonnull ClientIdentity identity) {
          return new Accounting(identity, accounting);
@@ -417,109 +380,6 @@ public class DAO {
     
     public static boolean hasAccounting(@Nonnull ClientIdentity credential) {
         return accounting.has(credential.toString());
-    }
-
-    public static Repository getRepository() throws IOException {
-        FileRepositoryBuilder builder = new FileRepositoryBuilder();
-        Repository repository = builder.setGitDir((susi_skill_repo))
-                        .readEnvironment() // scan environment GIT_* variables
-                        .findGitDir() // scan up the file system tree
-                        .build();
-        return repository;
-    }
-
-    public static Git getGit() throws IOException {
-        Git git = new Git(getRepository());
-        return git;
-    }
-
-    public static void pull(Git git) throws IOException {
-        try {
-            PullResult pullResult = git.pull().call();
-            MergeResult mergeResult = pullResult.getMergeResult();
-
-            if (mergeResult!=null && mergeResult.getConflicts()!=null) {
-                pullStatus =false;
-                // we have conflicts send email to admin
-                try {
-                    EmailHandler.sendEmail(getConfig("skill_repo.admin_email",""), "SUSI Skill Data Conflicts", getConflictsMailContent(mergeResult));
-                } catch (Throwable e) {
-                 e.printStackTrace();
-                }
-
-            } else {
-                PushCommand push = git.push();
-                push.setCredentialsProvider(new UsernamePasswordCredentialsProvider(getConfig("github.username", ""), getConfig("github.password","")));
-                push.call();
-            }
-            
-        } catch (GitAPIException e) {
-            throw new IOException (e.getMessage());
-        }
-    }
-
-    /**
-     * commit user changes to the skill data repository
-     * @param git
-     * @param commit_message
-     * @param userEmail
-     * @throws IOException
-     */
-    public static void pushCommit(Git git, String commit_message, String userEmail) throws IOException {
-
-        // fix bad email setting
-        if (userEmail==null || userEmail.isEmpty()) {
-            assert false; // this should not happen
-            userEmail = "anonymous@";
-        }
-        
-        try {
-            git.commit()
-                    .setAllowEmpty(false)
-                    .setAll(true)
-                    .setAuthor(new PersonIdent(userEmail,userEmail))
-                    .setMessage(commit_message)
-                    .call();
-            String remote = "origin";
-            String branch = "refs/heads/master";
-            String trackingBranch = "refs/remotes/" + remote + "/master";
-            RefSpec spec = new RefSpec(branch + ":" + branch);
-
-            // TODO: pull & merge
-            
-            PushCommand push = git.push();
-            push.setForce(true);
-            push.setCredentialsProvider(new UsernamePasswordCredentialsProvider(getConfig("github.username", ""), getConfig("github.password","")));
-            push.call();
-        } catch (GitAPIException e) {
-            throw new IOException (e.getMessage());
-        }
-    }
-    
-    private static String getConflictsMailContent(MergeResult mergeResult) throws APIException {
-        // get template file
-        String result="";
-        String conflictLines= "";
-        try {
-            result = IO.readFileCached(Paths.get(DAO.conf_dir + "/templates/conflicts-mail.txt"));
-            for (String path :mergeResult.getConflicts().keySet()) {
-                int[][] c = mergeResult.getConflicts().get(path);
-                conflictLines+= "Conflicts in file " + path + "\n";
-                for (int i = 0; i < c.length; ++i) {
-                    conflictLines+= "  Conflict #" + i+1 +"\n";
-                    for (int j = 0; j < (c[i].length) - 1; ++j) {
-                        if (c[i][j] >= 0)
-                            conflictLines+= "    Chunk for "
-                                    + mergeResult.getMergedCommits()[j] + " starts on line #"
-                                    + c[i][j] +"\n";
-                    }
-                }
-            }
-            result = result.replace(conflictsPlaceholder, conflictLines);
-        } catch (IOException e) {
-            throw new APIException(500, "No conflicts email template");
-        }
-        return result;
     }
     
 }

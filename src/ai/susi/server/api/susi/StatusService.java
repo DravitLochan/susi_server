@@ -19,17 +19,25 @@
 
 package ai.susi.server.api.susi;
 
+import java.io.IOException;
+import java.util.Enumeration;
+import javax.servlet.http.HttpServletResponse;
+
+import org.json.JSONObject;
+
 import ai.susi.Caretaker;
 import ai.susi.SusiServer;
 import ai.susi.json.JsonObjectWithDefault;
-import ai.susi.server.*;
+import ai.susi.server.APIException;
+import ai.susi.server.APIHandler;
+import ai.susi.server.AbstractAPIHandler;
+import ai.susi.server.Authorization;
+import ai.susi.server.BaseUserRole;
+import ai.susi.server.ClientConnection;
+import ai.susi.server.Query;
+import ai.susi.server.ServiceResponse;
 import ai.susi.tools.OS;
 import ai.susi.tools.UTF8;
-import org.json.JSONObject;
-
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.Enumeration;
 
 public class StatusService extends AbstractAPIHandler implements APIHandler {
    
@@ -41,12 +49,12 @@ public class StatusService extends AbstractAPIHandler implements APIHandler {
     }
 
     @Override
-    public UserRole getMinimalUserRole() {
-        return UserRole.ANONYMOUS;
+    public BaseUserRole getMinimalBaseUserRole() {
+        return BaseUserRole.ANONYMOUS;
     }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 

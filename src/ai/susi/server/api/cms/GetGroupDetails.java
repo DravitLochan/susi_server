@@ -22,12 +22,12 @@ public class GetGroupDetails extends AbstractAPIHandler implements APIHandler {
     private static final long serialVersionUID = 5747506850176916431L;
 
     @Override
-    public UserRole getMinimalUserRole() {
-        return UserRole.ANONYMOUS;
+    public BaseUserRole getMinimalBaseUserRole() {
+        return BaseUserRole.ANONYMOUS;
     }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 
@@ -40,14 +40,12 @@ public class GetGroupDetails extends AbstractAPIHandler implements APIHandler {
     public ServiceResponse serviceImpl(Query call, HttpServletResponse response, Authorization rights, final JsonObjectWithDefault permissions) {
         Boolean foundUser;
         JSONObject success = new JSONObject();
-        success.put("accepted", false);
-        success.put("message", "Error: Unable to process request");
+        success.put("success", false);
         JSONObject allUsers;
         allUsers = DAO.group.toJSON();
         String model_name = call.get("group", null);
         foundUser = false;
         if (model_name == null) {
-            success.put("message", "Error: Bad call group parameter not specified");
             return new ServiceResponse(success);
         } else {
             //Searching for keys in groups.json
@@ -68,14 +66,11 @@ public class GetGroupDetails extends AbstractAPIHandler implements APIHandler {
             if (foundUser) {
                 JSONObject details = new JSONObject();
                 details = allUsers.getJSONObject(model_name);
-                details.put("accepted", true);
-                details.put("message", "Success: Request processed");
+                details.put("success", true);
                 return new ServiceResponse(details);
 
-            } else{
-                success.put("message", "user not found");
+            } else
                 return new ServiceResponse(success);
-            }
 
 
         }

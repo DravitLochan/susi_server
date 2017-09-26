@@ -19,30 +19,40 @@
 
 package ai.susi.server.api.susi;
 
-import ai.susi.json.JsonObjectWithDefault;
-import ai.susi.mind.SusiThought;
-import ai.susi.server.*;
-import com.sun.syndication.feed.synd.SyndEntry;
-import com.sun.syndication.feed.synd.SyndFeed;
-import com.sun.syndication.io.SyndFeedInput;
-import com.sun.syndication.io.XmlReader;
+import java.util.List;
+
 import org.broadbear.link.preview.SourceContent;
 import org.broadbear.link.preview.TextCrawler;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import com.sun.syndication.feed.synd.SyndEntry;
+import com.sun.syndication.feed.synd.SyndFeed;
+import com.sun.syndication.io.SyndFeedInput;
+import com.sun.syndication.io.XmlReader;
+
+import ai.susi.json.JsonObjectWithDefault;
+import ai.susi.mind.SusiThought;
+import ai.susi.server.APIException;
+import ai.susi.server.APIHandler;
+import ai.susi.server.AbstractAPIHandler;
+import ai.susi.server.Authorization;
+import ai.susi.server.BaseUserRole;
+import ai.susi.server.ClientConnection;
+import ai.susi.server.Query;
+import ai.susi.server.ServiceResponse;
+
 import javax.servlet.http.HttpServletResponse;
-import java.util.List;
 
 public class RSSReaderService extends AbstractAPIHandler implements APIHandler {
 
 	private static final long serialVersionUID = 1463185662941444503L;
 
     @Override
-    public UserRole getMinimalUserRole() { return UserRole.ANONYMOUS; }
+    public BaseUserRole getMinimalBaseUserRole() { return BaseUserRole.ANONYMOUS; }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 

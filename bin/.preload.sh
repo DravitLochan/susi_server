@@ -2,7 +2,7 @@
 
 JARFILE="build/libs/susi_server-all.jar"
 INSTALLATIONCONFIG="data/settings/installation.txt"
-PIDFILE="data/susi.pid"
+PIDFILE="data/loklak.pid"
 DFAULTCONFIG="conf/config.properties"
 CUSTOMCONFIG="data/settings/customized_config.properties"
 LOGCONFIG="conf/logs/log-to-file.properties"

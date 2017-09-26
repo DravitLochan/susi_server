@@ -19,15 +19,9 @@
 
 package ai.susi;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.AgeFileFilter;
-import org.apache.commons.io.filefilter.TrueFileFilter;
+import org.eclipse.jetty.util.log.Log;
 
 import ai.susi.tools.TimeoutMatcher;
-import org.joda.time.DateTime;
-
-import java.io.File;
-import java.util.Collection;
 
 
 /**
@@ -46,39 +40,29 @@ public class Caretaker extends Thread {
     public void shutdown() {
         this.shallRun = false;
         this.interrupt();
-        DAO.log("catched caretaker termination signal");
+        Log.getLog().info("catched caretaker termination signal");
     }
-
-    public void deleteOldFiles() {
-        Collection<File> filesToDelete = FileUtils.listFiles(new File(DAO.deleted_skill_dir.getPath()),
-                new AgeFileFilter(DateTime.now().withTimeAtStartOfDay().minusDays(30).toDate()),
-                TrueFileFilter.TRUE);    // include sub dirs
-        for (File file : filesToDelete) {
-            boolean success = FileUtils.deleteQuietly(file);
-            if (!success) {
-                System.out.print("Deleted skill older than 30 days.");
-            }
-        }
-    }
+    
     @Override
     public void run() {
         
         boolean busy = false;
         // work loop
         beat: while (this.shallRun) try {
-            deleteOldFiles();
+            
+            
             // sleep a bit to prevent that the DoS limit fires at backend server
             try {Thread.sleep(busy ? 1000 : 5000);} catch (InterruptedException e) {}
             TimeoutMatcher.terminateAll();
-
+            
             if (!this.shallRun) break beat;
             busy = false;
-
+            
         } catch (Throwable e) {
-            DAO.severe("CARETAKER THREAD", e);
+            Log.getLog().warn("CARETAKER THREAD", e);
         }
 
-        DAO.log("caretaker terminated");
+        Log.getLog().info("caretaker terminated");
     }
     
 }

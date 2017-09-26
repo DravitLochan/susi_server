@@ -19,42 +19,45 @@
 
 package ai.susi.server.api.aaa;
 
+import org.json.JSONObject;
+
 import ai.susi.DAO;
 import ai.susi.json.JsonObjectWithDefault;
 import ai.susi.server.*;
-import org.json.JSONObject;
 
 import javax.servlet.http.HttpServletResponse;
+
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 public class UserManagementService extends AbstractAPIHandler implements APIHandler {
 
 	private static final long serialVersionUID = 8578478303032749879L;
 
 	@Override
-	public UserRole getMinimalUserRole() {
-		return UserRole.ACCOUNTCREATOR;
+	public BaseUserRole getMinimalBaseUserRole() {
+		return BaseUserRole.PRIVILEGED;
 	}
 
 	@Override
-	public JSONObject getDefaultPermissions(UserRole baseUserRole){
+	public JSONObject getDefaultPermissions(BaseUserRole baseUserRole){
 		JSONObject result = new JSONObject();
 
-		switch(baseUserRole) {
-			case BUREAUCRAT:
+		switch(baseUserRole){
+			case ADMIN:
 				result.put("list_users", true);
 				result.put("list_users-roles", true);
 				result.put("edit-all", true);
 				result.put("edit-less-privileged", true);
 				break;
-			case ADMIN:
+			case PRIVILEGED:
 				result.put("list_users", true);
 				result.put("list_users-roles", true);
 				result.put("edit-all", false);
 				result.put("edit-less-privileged", true);
 				break;
-	        case BOT:
-	        case ANONYMOUS:
 			default:
 				result.put("list_users", false);
 				result.put("list_users-roles", false);
@@ -87,6 +90,21 @@ public class UserManagementService extends AbstractAPIHandler implements APIHand
 					result.put("accepted", true);
 					result.put("message","Success: Showing user list");
 				} else throw new APIException(403, "Forbidden");
+				break;
+			case "user-roles":
+				JSONObject userRolesObj = new JSONObject();
+				Map<String, UserRole> userRoles = DAO.userRoles.getUserRoles();
+				for(String key : userRoles.keySet()){
+					UserRole userRole = userRoles.get(key);
+					JSONObject obj = new JSONObject();
+					obj.put("display-name",userRole.getDisplayName());
+					obj.put("base-user-role",userRole.getBaseUserRole().name());
+					obj.put("permission-overrides",userRole.getPermissionOverrides());
+					userRolesObj.put(key,obj);
+				}
+				result.put("user-roles", userRolesObj);
+				result.put("accepted", true);
+				result.put("message","Success: Showing user roles");
 				break;
 			default: throw new APIException(400, "No 'show' parameter specified");
 		}

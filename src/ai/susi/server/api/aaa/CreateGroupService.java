@@ -22,10 +22,14 @@ package ai.susi.server.api.aaa;
 
 import ai.susi.DAO;
 import ai.susi.json.JsonObjectWithDefault;
-import ai.susi.server.*;
+import ai.susi.server.APIHandler;
+import ai.susi.server.AbstractAPIHandler;
+import ai.susi.server.BaseUserRole;
+import ai.susi.server.ServiceResponse;
+import ai.susi.server.Query;
+import ai.susi.server.Authorization;
 import org.json.JSONArray;
 import org.json.JSONObject;
-
 import javax.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,12 +47,12 @@ public class CreateGroupService extends AbstractAPIHandler implements APIHandler
     private static final long serialVersionUID = -742269505564698987L;
 
     @Override
-    public UserRole getMinimalUserRole() {
-        return UserRole.ADMIN;
+    public BaseUserRole getMinimalBaseUserRole() {
+        return BaseUserRole.ADMIN;
     }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 

@@ -40,12 +40,12 @@ public class ListSettingsService extends AbstractAPIHandler implements APIHandle
     }
 
     @Override
-    public UserRole getMinimalUserRole() {
-        return UserRole.ADMIN;
+    public BaseUserRole getMinimalBaseUserRole() {
+        return BaseUserRole.ADMIN;
     }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 

@@ -29,47 +29,41 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-public class SusiLinguistics {
+public class SusiReader {
 
-    private final static Map<SusiLanguage, Map<String,String>> synonyms = new ConcurrentHashMap<>(); // a map from a language to a map from a synonym to a canonical expression
-    private final static Map<SusiLanguage, Map<String,String>> categories = new ConcurrentHashMap<>(); // a map from a language to a map from an expression to an associated category name
-    private final static Map<SusiLanguage, Set<String>> filler = new ConcurrentHashMap<>(); // a map from a language to a set of words that can be ignored completely
+    private final Map<String,String> synonyms; // a map from a synonym to a canonical expression
+    private final Map<String,String> categories; // a map from an expression to an associated category name
+    private final Set<String> filler; // a set of words that can be ignored completely
     
-    public static void learn(SusiLanguage language, JSONObject json) {
+    public SusiReader() {
+        this.synonyms = new ConcurrentHashMap<>();
+        this.categories = new ConcurrentHashMap<>();
+        this.filler = new HashSet<>();
+    }
+    
+    public SusiReader learn(JSONObject json) {
 
         // initialize temporary json objects
         JSONObject syn = json.has("synonyms") ? json.getJSONObject("synonyms") : new JSONObject();
         JSONArray fill = json.has("filler") ? json.getJSONArray("filler") : new JSONArray();
         JSONObject cat = json.has("categories") ? json.getJSONObject("categories") : new JSONObject();
         
-        // check if synonyms exist
-        if (!synonyms.containsKey(language)) synonyms.put(language, new ConcurrentHashMap<>());
-        Map<String,String> synmap = synonyms.get(language);
-        
         // add synonyms
         for (String canonical: syn.keySet()) {
             JSONArray a = syn.getJSONArray(canonical);
-            a.forEach(synonym -> synmap.put(((String) synonym).toLowerCase(), canonical));
+            a.forEach(synonym -> synonyms.put(((String) synonym).toLowerCase(), canonical));
         }
-        
-        // check if filler exist
-        if (!filler.containsKey(language)) filler.put(language, new HashSet<>());
-        Set<String> fillset = filler.get(language);
         
         // add filler
-        fill.forEach(word -> fillset.add((String) word));
-        
-        // check if language exist
-        if (!categories.containsKey(language)) categories.put(language, new ConcurrentHashMap<>());
-        Map<String, String> catforlang = categories.get(language);
+        fill.forEach(word -> filler.add((String) word));
         
         // add categories
-        if (cat.length() > 0) {
-            for (String canonical: cat.keySet()) {
-                JSONArray a = cat.getJSONArray(canonical);
-                a.forEach(synonym -> catforlang.put(((String) synonym).toLowerCase(), canonical));
-            }
+        for (String canonical: cat.keySet()) {
+            JSONArray a = cat.getJSONArray(canonical);
+            a.forEach(synonym -> categories.put(((String) synonym).toLowerCase(), canonical));
         }
+        
+        return this;
     }
 
     public static class Token {
@@ -88,39 +82,24 @@ public class SusiLinguistics {
         }
     }
 
-    public static Token tokenizeTerm(SusiLanguage language, String term) {
-        language = language == null ? SusiLanguage.en : language;
+    public Token tokenizeTerm(String term) {
         String original = term.toLowerCase();
-        Map<String, String> synmap = synonyms.get(language);
-        String s = synmap == null ? null : synmap.get(original);
+        String s = this.synonyms.get(original);
         String canonical = s == null ? original : s;
-        Map<String, String> catforlang = categories.get(language);
-        String c = catforlang == null ? null : catforlang.get(canonical);
+        String c = this.categories.get(canonical);
         String categorized = c == null ? canonical : c;
         return new Token(original, canonical, categorized);
     }
 
-    public static List<Token> tokenizeSentence(SusiLanguage language, String term) {
-        language = language == null ? SusiLanguage.en : language;
+    public List<Token> tokenizeSentence(String term) {
         List<Token> t = new ArrayList<>();
         term = term.replaceAll("\\?", " ?").replaceAll("\\!", " !").replaceAll("\\.", " .").replaceAll("\\,", " ,").replaceAll("\\;", " ;").replaceAll("\\:", " :").replaceAll("  ", " ");
         String[] u = term.split(" ");
-        Set<String> fillset = filler.get(language);
         for (String v: u) {
             String original = v.toLowerCase();
-            if (fillset != null && fillset.contains(original)) continue;
-            t.add(tokenizeTerm(language, original));
+            if (this.filler.contains(original)) continue;
+            t.add(tokenizeTerm(original));
         }
         return t;
-    }
-
-    public static JSONObject expandStarter(SusiLanguage language, String answer) {
-        JSONObject json = new JSONObject(true);
-        return json;
-    }
-    
-    public static JSONObject expandStarter(SusiLanguage language, String answer, String subject) {
-        JSONObject json = new JSONObject(true);
-        return json;
     }
 }

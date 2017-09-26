@@ -19,18 +19,17 @@
 
 package ai.susi.server.api.aaa;
 
+import org.eclipse.jetty.util.log.Log;
+import org.json.JSONObject;
+
 import ai.susi.DAO;
 import ai.susi.json.JsonObjectWithDefault;
 import ai.susi.server.*;
 import ai.susi.tools.IO;
-import org.json.JSONObject;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.security.Signature;
+import java.security.*;
 import java.time.Instant;
 import java.util.Base64;
 
@@ -40,15 +39,11 @@ import java.util.Base64;
  * The following parameter combinations are valid:
  * - checkLogin=true	# check the login status
  * - logout=true		# end the current session
- * - login,password,type(session | cookie | access_token | check_password)	# login with password. session starts a browser session, cookie sets a long living cookie, access_token creates an access_token and returns it with the server reply,
- * -																		  check_password tells the client about whether password supplied by it is correct or not
+ * - login,password,type(session | cookie | access_token)	# login with password. session starts a browser session, cookie sets a long living cookie, access_token creates an access_token and returns it with the server reply
  * - login,keyhash	# first part of login via public/private key handshake. The keyhash is displayed on key registration
  * - sessionID,response	# second part. sessionID is part of the server reply of the first part. response is a signature of the challenge, also part of the server reply.
  * At the moment, only SHA256withRSA is supported as signature algorithm
  *
- * example:
- * http://localhost:4000/aaa/login.json?login=bob@the.builder&type=access-token&password=yeshecan
- * http://localhost:4000/aaa/login.json?checkLogin=true&access_token=6O7cqoMbzlClxPwg1is31Tz5pjVwo3
  */
 public class LoginService extends AbstractAPIHandler implements APIHandler {
 
@@ -56,12 +51,12 @@ public class LoginService extends AbstractAPIHandler implements APIHandler {
 	private static final long defaultAccessTokenExpireTime = 7 * 24 * 60 * 60; // one week
 
 	@Override
-	public UserRole getMinimalUserRole() {
-		return UserRole.ANONYMOUS;
+	public BaseUserRole getMinimalBaseUserRole() {
+		return BaseUserRole.ANONYMOUS;
 	}
 
 	@Override
-	public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+	public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
 		JSONObject result = new JSONObject();
 		result.put("maxInvalidLogins", 10);
 		result.put("blockTimeSeconds", 120);
@@ -108,11 +103,7 @@ public class LoginService extends AbstractAPIHandler implements APIHandler {
 			if (delete) {
 	            ClientCredential pwcredential = new ClientCredential(authorization.getIdentity());
 			    delete = DAO.hasAuthentication(pwcredential);
-			    delete = DAO.hasAuthorization(authorization.getIdentity());
-			    if (delete) {
-					DAO.deleteAuthorization(authorization.getIdentity());
-					DAO.deleteAuthentication(pwcredential);
-				}
+			    if (delete) DAO.deleteAuthentication(pwcredential);
 			}
 			
 			JSONObject result = new JSONObject(true);
@@ -158,7 +149,7 @@ public class LoginService extends AbstractAPIHandler implements APIHandler {
 				passwordHash = authentication.getString("passwordHash");
 				salt = authentication.getString("salt");
 			} catch (Throwable e) {
-				DAO.log("Invalid login try for user: " + identity.getName() + " from host: " + post.getClientHost() + " : password or salt missing in database");
+				Log.getLog().info("Invalid login try for user: " + identity.getName() + " from host: " + post.getClientHost() + " : password or salt missing in database");
 				throw new APIException(422, "Invalid credentials");
 			}
 
@@ -168,7 +159,7 @@ public class LoginService extends AbstractAPIHandler implements APIHandler {
 			    Accounting accouting = DAO.getAccounting(identity);
 			    accouting.getRequests().addRequest(this.getClass().getCanonicalName(), "invalid login");
 
-				DAO.log("Invalid login try for user: " + identity.getName() + " via passwd from host: " + post.getClientHost());
+				Log.getLog().info("Invalid login try for user: " + identity.getName() + " via passwd from host: " + post.getClientHost());
 				throw new APIException(422, "Invalid credentials");
 			}
 
@@ -214,24 +205,14 @@ public class LoginService extends AbstractAPIHandler implements APIHandler {
 					result.put("accepted", true);
 
 					break;
-
-				case "check_password" : // only tell the client about correct password
-					result.put("accepted", true);
-					break;
-
 				default:
 					throw new APIException(400, "Invalid type");
 			}
 
-			DAO.log("login for user: " + identity.getName() + " via passwd from host: " + post.getClientHost());
+			Log.getLog().info("login for user: " + identity.getName() + " via passwd from host: " + post.getClientHost());
 
 			result.put("message", "You are logged in as " + identity.getName());
 			result.put("accepted", true);
-
-			// store the IP of last login in accounting object
-			Accounting accouting = DAO.getAccounting(identity);
-			accouting.getJSON().put("lastLoginIP", post.getClientHost());
-
 			return new ServiceResponse(result);
 		}
 		else if(pubkeyHello){ // first part of pubkey login: if the key hash is known, create a challenge
@@ -332,13 +313,15 @@ public class LoginService extends AbstractAPIHandler implements APIHandler {
 
 		if (authentication.getIdentity() == null) { // check if identity is valid
 			authentication.delete();
+			Accounting accouting = DAO.getAccounting(authentication.getIdentity());
+			accouting.getRequests().addRequest(this.getClass().getCanonicalName(), "invalid login");
 
-			DAO.log("Invalid login try for unknown user: " + credential.getName() + " via passwd from host: " + post.getClientHost());
+			Log.getLog().info("Invalid login try for unknown user: " + credential.getName() + " via passwd from host: " + post.getClientHost());
 			throw new APIException(422, "Invalid credentials");
 		}
 
 		if (!authentication.getBoolean("activated", false)) { // check if identity is valid
-			DAO.log("Invalid login try for user: " + credential.getName() + " from host: " + post.getClientHost() + " : user not activated yet");
+			Log.getLog().info("Invalid login try for user: " + credential.getName() + " from host: " + post.getClientHost() + " : user not activated yet");
 			throw new APIException(422, "User not yet activated");
 		}
 
@@ -372,10 +355,10 @@ public class LoginService extends AbstractAPIHandler implements APIHandler {
 	private void checkInvalidLogins(Query post, Authorization authorization, JsonObjectWithDefault permissions) throws APIException {
 
 		// is already blocked?
-		long blockedUntil = permissions.getLong("blockedUntil", 0);
+		long blockedUntil = permissions.getLong("blockedUntil");
 		if(blockedUntil != 0) {
 			if (blockedUntil > Instant.now().getEpochSecond()) {
-				DAO.log("Blocked ip " + post.getClientHost() + " because of too many invalid login attempts.");
+				Log.getLog().info("Blocked ip " + post.getClientHost() + " because of too many invalid login attempts.");
 				throw new APIException(403, "Too many invalid login attempts. Try again in "
 						+ (blockedUntil - Instant.now().getEpochSecond()) + " seconds");
 			}

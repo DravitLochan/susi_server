@@ -19,15 +19,17 @@
 
 package ai.susi.server.api.aaa;
 
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemReader;
+import org.bouncycastle.util.io.pem.PemWriter;
+import org.eclipse.jetty.util.log.Log;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import ai.susi.DAO;
 import ai.susi.json.JsonObjectWithDefault;
 import ai.susi.server.*;
 import ai.susi.tools.IO;
-import org.bouncycastle.util.io.pem.PemObject;
-import org.bouncycastle.util.io.pem.PemReader;
-import org.bouncycastle.util.io.pem.PemWriter;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -36,10 +38,7 @@ import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
@@ -77,28 +76,35 @@ public class PublicKeyRegistrationService extends AbstractAPIHandler implements 
 	private static final String[] allowedFormats = {"DER", "PEM"};
 
 	@Override
-	public UserRole getMinimalUserRole() {
-		return UserRole.ANONYMOUS;
+	public BaseUserRole getMinimalBaseUserRole() {
+		return BaseUserRole.ANONYMOUS;
 	}
 
 	@Override
-	public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+	public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
 		JSONObject result = new JSONObject();
 
 		switch(baseUserRole){
-			case BUREAUCRAT:
-            case ADMIN:
-            case ACCOUNTCREATOR:
-            case REVIEWER:
+			case ADMIN:
+				result.put("self", true);
+				result.put("users", new JSONObject());
+				JSONObject userRoles = new JSONObject();
+				for(String userRole : DAO.userRoles.getUserRoles().keySet()){
+					userRoles.put(userRole, true);
+				}
+				result.put("userRoles", userRoles);
+				break;
+			case PRIVILEGED:
 			case USER:
 				result.put("self", true);
 				result.put("users", new JSONObject());
+				result.put("userRoles", new JSONObject());
 				break;
-            case BOT:
-            case ANONYMOUS:
+			case ANONYMOUS:
 			default:
 				result.put("self", false);
 				result.put("users", new JSONObject());
+				result.put("userRoles", new JSONObject());
 		}
 
 		return result;
@@ -260,7 +266,7 @@ public class PublicKeyRegistrationService extends AbstractAPIHandler implements 
 				RSAPublicKey pub;
 				String encodedKey;
 				try { encodedKey = URLDecoder.decode(post.get("register", null), "UTF-8");} catch (Throwable e){throw new APIException(500, "Server error");}
-				DAO.log("Key (" + type + "): " + encodedKey);
+				Log.getLog().info("Key (" + type + "): " + encodedKey);
 
 				if(type.equals("DER")) {
 					try {

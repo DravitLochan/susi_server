@@ -20,10 +20,16 @@
 
 package ai.susi.server.api.cms;
 
-import ai.susi.json.JsonObjectWithDefault;
-import ai.susi.server.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import ai.susi.json.JsonObjectWithDefault;
+import ai.susi.server.APIHandler;
+import ai.susi.server.AbstractAPIHandler;
+import ai.susi.server.Authorization;
+import ai.susi.server.BaseUserRole;
+import ai.susi.server.Query;
+import ai.susi.server.ServiceResponse;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -32,10 +38,10 @@ public class TopMenuService extends AbstractAPIHandler implements APIHandler {
     private static final long serialVersionUID = 1839868262296635665L;
 
     @Override
-    public UserRole getMinimalUserRole() { return UserRole.ANONYMOUS; }
+    public BaseUserRole getMinimalBaseUserRole() { return BaseUserRole.ANONYMOUS; }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 
@@ -53,8 +59,6 @@ public class TopMenuService extends AbstractAPIHandler implements APIHandler {
             .put(new JSONObject().put("API", "api.html"))
             .put(new JSONObject().put("Account", "apps/applist/index.html"));
         json.put("items", topmenu);
-        json.put("accepted", true);
-        json.put("message", "Request processed successfully");
         
         // modify caching
         json.put("$EXPIRES", 600);

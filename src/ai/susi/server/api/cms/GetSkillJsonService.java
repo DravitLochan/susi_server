@@ -20,9 +20,15 @@
 package ai.susi.server.api.cms;
 
 import ai.susi.DAO;
-import ai.susi.json.JsonObjectWithDefault;
-import ai.susi.server.*;
 import org.json.JSONObject;
+
+import ai.susi.json.JsonObjectWithDefault;
+import ai.susi.server.APIHandler;
+import ai.susi.server.AbstractAPIHandler;
+import ai.susi.server.Authorization;
+import ai.susi.server.BaseUserRole;
+import ai.susi.server.Query;
+import ai.susi.server.ServiceResponse;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
@@ -34,7 +40,7 @@ import java.nio.file.Files;
  * i.e.
  * http://localhost:4000/cms/getSkill.json
  * This accepts 4 parameters: - Model, Group, Language and Skill Name
- * http://localhost:4000/cms/getSkill.json?model=general&group=Knowledge&language=en&skill=wikipedia
+ * http://localhost:4000/cms/getSkill.json?model=general&group=knowledge&language=en&skill=wikipedia
  */
 
 public class GetSkillJsonService extends AbstractAPIHandler implements APIHandler {
@@ -42,10 +48,10 @@ public class GetSkillJsonService extends AbstractAPIHandler implements APIHandle
     private static final long serialVersionUID = 18344223L;
 
     @Override
-    public UserRole getMinimalUserRole() { return UserRole.ANONYMOUS; }
+    public BaseUserRole getMinimalBaseUserRole() { return BaseUserRole.ANONYMOUS; }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 
@@ -61,10 +67,10 @@ public class GetSkillJsonService extends AbstractAPIHandler implements APIHandle
 
         // modify caching
         json.put("$EXPIRES", 0);
-        json.put("accepted", false);
+
         String model_name = call.get("model", "general");
         File model = new File(DAO.model_watch_dir, model_name);
-        String group_name = call.get("group", "Knowledge");
+        String group_name = call.get("group", "knowledge");
         File group = new File(model, group_name);
         String language_name = call.get("language", "en");
         File language = new File(group, language_name);
@@ -75,9 +81,10 @@ public class GetSkillJsonService extends AbstractAPIHandler implements APIHandle
             String content = new String(Files.readAllBytes(skill.toPath()));
             json.put("text",content);
             json.put("accepted",true);
+            return new ServiceResponse(json);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return new ServiceResponse(json);
+        return null;
     }
 }

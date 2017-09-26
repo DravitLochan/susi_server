@@ -19,31 +19,38 @@
 
 package ai.susi.server.api.cms;
 
-import ai.susi.DAO;
-import ai.susi.json.JsonObjectWithDefault;
-import ai.susi.server.*;
 import org.json.JSONObject;
 
-import javax.servlet.http.HttpServletResponse;
+import ai.susi.DAO;
+import ai.susi.json.JsonObjectWithDefault;
+import ai.susi.server.APIHandler;
+import ai.susi.server.AbstractAPIHandler;
+import ai.susi.server.Authorization;
+import ai.susi.server.BaseUserRole;
+import ai.susi.server.Query;
+import ai.susi.server.ServiceResponse;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Servlet to load an skill from the skill database
  * i.e.
  * http://localhost:4000/cms/getSkill.txt
- * http://localhost:4000/cms/getSkill.txt?model=general&group=Knowledge&language=en&skill=wikipedia
+ * http://localhost:4000/cms/getSkill.txt?model=general&group=knowledge&language=en&skill=wikipedia
  */
 public class GetSkillTxtService extends AbstractAPIHandler implements APIHandler {
     
     private static final long serialVersionUID = 18344224L;
 
     @Override
-    public UserRole getMinimalUserRole() { return UserRole.ANONYMOUS; }
+    public BaseUserRole getMinimalBaseUserRole() { return BaseUserRole.ANONYMOUS; }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 
@@ -57,23 +64,19 @@ public class GetSkillTxtService extends AbstractAPIHandler implements APIHandler
 
         String model_name = call.get("model", "general");
         File model = new File(DAO.model_watch_dir, model_name);
-        String group_name = call.get("group", "Knowledge");
+        String group_name = call.get("group", "knowledge");
         File group = new File(model, group_name);
         String language_name = call.get("language", "en");
         File language = new File(group, language_name);
         String skill_name = call.get("skill", "wikipedia");
         File skill = new File(language, skill_name + ".txt");
-        JSONObject json = new JSONObject(true);
-        json.put("accepted", false);
         
         try {
             String content = new String(Files.readAllBytes(skill.toPath()));
-            json.put("content", content);
-            json.put("accepted", true);
-            return new ServiceResponse(json);
+            return new ServiceResponse(content);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return new ServiceResponse(json);
+        return null;
     }
 }

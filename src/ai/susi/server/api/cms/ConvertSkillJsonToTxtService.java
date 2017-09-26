@@ -19,9 +19,15 @@
 
 package ai.susi.server.api.cms;
 
-import ai.susi.json.JsonObjectWithDefault;
-import ai.susi.server.*;
 import org.json.JSONObject;
+
+import ai.susi.json.JsonObjectWithDefault;
+import ai.susi.server.APIHandler;
+import ai.susi.server.AbstractAPIHandler;
+import ai.susi.server.Authorization;
+import ai.susi.server.BaseUserRole;
+import ai.susi.server.Query;
+import ai.susi.server.ServiceResponse;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -30,10 +36,10 @@ public class ConvertSkillJsonToTxtService extends AbstractAPIHandler implements 
     private static final long serialVersionUID = 18344221L;
 
     @Override
-    public UserRole getMinimalUserRole() { return UserRole.ANONYMOUS; }
+    public BaseUserRole getMinimalBaseUserRole() { return BaseUserRole.ANONYMOUS; }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 
@@ -46,9 +52,9 @@ public class ConvertSkillJsonToTxtService extends AbstractAPIHandler implements 
     public ServiceResponse serviceImpl(Query call, HttpServletResponse response, Authorization rights, final JsonObjectWithDefault permissions) {
         
         JSONObject json = new JSONObject(true);
+        
         // modify caching
         json.put("$EXPIRES", 600);
-        json.put("accepted", true);
         return new ServiceResponse(json);
     }
 }

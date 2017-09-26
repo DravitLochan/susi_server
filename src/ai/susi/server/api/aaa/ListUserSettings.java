@@ -1,17 +1,22 @@
 package ai.susi.server.api.aaa;
 
 import ai.susi.DAO;
+import ai.susi.SusiServer;
 import ai.susi.json.JsonObjectWithDefault;
 import ai.susi.server.*;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
+import javax.servlet.Servlet;
 import javax.servlet.http.HttpServletResponse;
+import java.io.File;
+import java.lang.reflect.Constructor;
+import java.util.Collection;
 
 /**
  * Created by saurabh on 20/6/17.
  * Servlet to read user setting
- * example:
- * http://localhost:4000/aaa/listUserSettings.json?access_token=6O7cqoMbzlClxPwg1is31Tz5pjVwo3
+ * test locally at http://127.0.0.1:4000/aaa/listUserSettings.json
  */
 public class ListUserSettings extends AbstractAPIHandler implements APIHandler {
     private static final long serialVersionUID = -1972211109199355750L;
@@ -22,12 +27,12 @@ public class ListUserSettings extends AbstractAPIHandler implements APIHandler {
     }
 
     @Override
-    public UserRole getMinimalUserRole() {
-        return UserRole.USER;
+    public BaseUserRole getMinimalBaseUserRole() {
+        return BaseUserRole.USER;
     }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 

@@ -48,7 +48,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import ai.susi.DAO;
+import org.eclipse.jetty.util.log.Log;
 
 public final class OS {
 
@@ -233,7 +233,7 @@ public final class OS {
                 try {
                     fos.close();
                 } catch (final Exception e ) {
-                	DAO.severe(e);
+                	Log.getLog().warn(e);
                 }
             }
         }
@@ -254,7 +254,7 @@ public final class OS {
             try {
                 Runtime.getRuntime().exec("chmod 755 " + scriptFile.getAbsolutePath().replaceAll(" ", "\\ ")).waitFor();
             } catch (final InterruptedException e) {
-            	DAO.severe("DEPLOY of script file failed. file = " + scriptFile.getAbsolutePath(), e);
+            	Log.getLog().warn("DEPLOY of script file failed. file = " + scriptFile.getAbsolutePath(), e);
                 throw new IOException(e.getMessage());
             }
         }

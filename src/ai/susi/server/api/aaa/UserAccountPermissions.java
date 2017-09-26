@@ -19,11 +19,12 @@
 
 package ai.susi.server.api.aaa;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import ai.susi.SusiServer;
 import ai.susi.json.JsonObjectWithDefault;
 import ai.susi.server.*;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import javax.servlet.Servlet;
 import javax.servlet.http.HttpServletResponse;
@@ -34,10 +35,10 @@ public class UserAccountPermissions extends AbstractAPIHandler implements APIHan
     private static final long serialVersionUID = 8678478303032749879L;
 
     @Override
-    public UserRole getMinimalUserRole() { return UserRole.USER; }
+    public BaseUserRole getMinimalBaseUserRole() { return BaseUserRole.USER; }
 
 	@Override
-	public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+	public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
 		return null;
 	}
 
@@ -76,7 +77,7 @@ public class UserAccountPermissions extends AbstractAPIHandler implements APIHan
 			}
 
 			if(service instanceof AbstractAPIHandler){
-				result.put("servicePermissions", authorization.getPermission());
+				result.put("servicePermissions", authorization.getPermissions((AbstractAPIHandler) service));
 				return new ServiceResponse(result);
 			}
 			else{
@@ -92,15 +93,16 @@ public class UserAccountPermissions extends AbstractAPIHandler implements APIHan
 			result.put("message", "Success : Service List");
 			return new ServiceResponse(result);
 		}else if (query.get("getUserRolePermission", false)) {
-			result.put("userRolePermissions", authorization.getPermission());
+			result.put("userRolePermissions", authorization.getUserRole().getPermissionOverrides());
 			result.put("accepted", true);
 			result.put("message", "Success : User Role Permission");
 			return new ServiceResponse(result);
 		} else {
 			result.put("userName", authorization.getIdentity().getName());
-			result.put("userSpecificPermissions", authorization.getPermission());
-			result.put("userRole", authorization.getUserRole().getName());
-			result.put("userRoleSpecificPermissions", authorization.getPermission());
+			result.put("userSpecificPermissions", authorization.getPermissionOverrides());
+			result.put("userRole", authorization.getUserRole().getDisplayName());
+			result.put("userRoleSpecificPermissions", authorization.getUserRole().getPermissionOverrides());
+			result.put("parentUserRole", authorization.getUserRole().getParent());
 			result.put("accepted", true);
 			result.put("message", "Success : Service Permissions");
 			return new ServiceResponse(result);

@@ -38,27 +38,20 @@ import org.json.JSONTokener;
 public class JsonFile extends JSONObject {
 	
 	private final File file;
-	private long file_date;
 
 	public JsonFile(File file) throws IOException {
 		super(true);
 		if (file == null) throw new IOException("File must not be null");
 		
 		this.file = file;
-		this.file_date = 0;
-		updateToFile();
-	}
-
-	public void updateToFile() throws JSONException {
-		if (this.file.lastModified() == this.file_date) return;
-		JSONObject json;
-		try {
-			json = readJson(this.file);
-		} catch (IOException e) {
-			throw new JSONException(e.getMessage());
+		if (file.exists()) {
+			JSONTokener tokener;
+			tokener = new JSONTokener(new FileReader(file));
+			putAll(new JSONObject(tokener));
+		} else {
+			file.createNewFile();
+			commit();
 		}
-		super.putAll(json);
-		this.file_date = file.lastModified();
 	}
 	
 	/**
@@ -68,16 +61,12 @@ public class JsonFile extends JSONObject {
 	 * @throws IOException
 	 */
 	public static JSONObject readJson(File file) throws IOException {
+        if (file == null) throw new IOException("file must not be null");
 	    JSONObject json = new JSONObject(true);
-        if (file == null || !file.exists()) {
-        	file.createNewFile();
-        	writeJson(file, json);
-        } else {
-        	JSONTokener tokener;
-        	tokener = new JSONTokener(new FileReader(file));
-        	json.putAll(new JSONObject(tokener));
-        }
-    	return json;
+	    JSONTokener tokener;
+        tokener = new JSONTokener(new FileReader(file));
+        json.putAll(new JSONObject(tokener));
+        return json;
 	}
 	
 	/**
@@ -97,12 +86,8 @@ public class JsonFile extends JSONObject {
         FileWriter writer = new FileWriter(tmpFile0);
         writer.write(json.toString(2));
         writer.close();
-        
-        // start of critical phase: these operations must not be interrupted
         file.renameTo(tmpFile1);
         tmpFile0.renameTo(file);
-        // end of critical phase
-        
         tmpFile1.delete();
     }
 	
@@ -136,7 +121,6 @@ public class JsonFile extends JSONObject {
 
 	@Override
 	public synchronized JSONObject put(String key, boolean value) throws JSONException {
-		updateToFile();
 		super.put(key, value);
 		commit();
 		return this;
@@ -144,7 +128,6 @@ public class JsonFile extends JSONObject {
 	
 	@Override
 	public synchronized JSONObject put(String key, double value) throws JSONException {
-		updateToFile();
 		super.put(key, value);
 		commit();
 		return this;
@@ -152,7 +135,6 @@ public class JsonFile extends JSONObject {
 	
 	@Override
 	public synchronized JSONObject put(String key, Collection<?> value) throws JSONException {
-		updateToFile();
 		super.put(key, value);
 		commit();
 		return this;
@@ -160,7 +142,6 @@ public class JsonFile extends JSONObject {
 	
 	@Override
 	public synchronized JSONObject put(String key, int value) throws JSONException {
-		updateToFile();
 		super.put(key, value);
 		commit();
 		return this;
@@ -168,7 +149,6 @@ public class JsonFile extends JSONObject {
 	
 	@Override
 	public synchronized JSONObject put(String key, long value) throws JSONException {
-		updateToFile();
 		super.put(key, value);
 		commit();
 		return this;
@@ -176,7 +156,6 @@ public class JsonFile extends JSONObject {
 	
 	@Override
 	public synchronized JSONObject put(String key, Map<?, ?> value) throws JSONException {
-		updateToFile();
 		super.put(key, value);
 		commit();
 		return this;
@@ -184,29 +163,25 @@ public class JsonFile extends JSONObject {
 	
 	@Override
 	public synchronized JSONObject put(String key, Object value) throws JSONException {
-		updateToFile();
 		super.put(key, value);
 		commit();
 		return this;
 	}
 
 	public synchronized JSONObject put(String key, JSONObject value) throws JSONException {
-		updateToFile();
 		super.put(key, value);
 		commit();
 		return this;
 	}
 
 	@Override
-	public synchronized void putAll(JSONObject other) {
-		updateToFile();
+	public synchronized void putAll(JSONObject other){
 		super.putAll(other);
 		commit();
 	}
 	
 	@Override
 	public synchronized Object remove(String key) {
-		updateToFile();
 		super.remove(key);
 		commit();
 		return this;

@@ -42,10 +42,9 @@ import javax.imageio.metadata.IIOMetadataNode;
 import javax.imageio.stream.ImageOutputStream;
 import javax.imageio.stream.MemoryCacheImageOutputStream;
 
+import org.eclipse.jetty.util.log.Log;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-
-import ai.susi.DAO;
 
 /*
  * for a GIF Image Metadata Format Specification, see:
@@ -210,7 +209,7 @@ public class AnimationGIF {
             fos.write(generator.get());
             fos.close();
         } catch (final IOException e) {
-        	DAO.severe(e);
+        	Log.getLog().warn(e);
         }
     }
 }

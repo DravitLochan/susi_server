@@ -19,16 +19,27 @@
 
 package ai.susi.server.api.aaa;
 
+import java.io.IOException;
+import java.nio.file.Paths;
+
+import org.json.JSONObject;
+
 import ai.susi.DAO;
 import ai.susi.EmailHandler;
 import ai.susi.json.JsonObjectWithDefault;
-import ai.susi.server.*;
+import ai.susi.server.APIException;
+import ai.susi.server.APIHandler;
+import ai.susi.server.AbstractAPIHandler;
+import ai.susi.server.Authentication;
+import ai.susi.server.Authorization;
+import ai.susi.server.BaseUserRole;
+import ai.susi.server.ClientCredential;
+import ai.susi.server.ClientIdentity;
+import ai.susi.server.Query;
+import ai.susi.server.ServiceResponse;
 import ai.susi.tools.IO;
-import org.json.JSONObject;
 
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.nio.file.Paths;
 
 public class PasswordRecoveryService extends AbstractAPIHandler implements APIHandler {
 
@@ -41,12 +52,12 @@ public class PasswordRecoveryService extends AbstractAPIHandler implements APIHa
 	}
 
 	@Override
-	public UserRole getMinimalUserRole() {
-		return UserRole.ANONYMOUS;
+	public BaseUserRole getMinimalBaseUserRole() {
+		return BaseUserRole.ANONYMOUS;
 	}
 
 	@Override
-	public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+	public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
 		return null;
 	}
 

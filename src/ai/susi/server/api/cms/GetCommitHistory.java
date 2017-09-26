@@ -5,7 +5,9 @@ import ai.susi.json.JsonObjectWithDefault;
 import ai.susi.server.*;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -28,46 +30,58 @@ public class GetCommitHistory extends AbstractAPIHandler implements APIHandler {
     }
 
     @Override
-    public UserRole getMinimalUserRole() {
-        return UserRole.ANONYMOUS;
+    public BaseUserRole getMinimalBaseUserRole() {
+        return BaseUserRole.ANONYMOUS;
     }
 
     @Override
-    public JSONObject getDefaultPermissions(UserRole baseUserRole) {
+    public JSONObject getDefaultPermissions(BaseUserRole baseUserRole) {
         return null;
     }
 
     @Override
     public ServiceResponse serviceImpl(Query call, HttpServletResponse response, Authorization rights, final JsonObjectWithDefault permissions) throws APIException {
         JSONObject commit;
-        JSONObject json = new JSONObject(true);
-        json.put("accepted", false);
         JSONArray commitsArray;
         commitsArray = new JSONArray();
-        
+        String path = DAO.susi_skill_repo.toString();
         //Add to git
-        try (Git git = DAO.getGit()) {
-            Iterable<RevCommit> logs;
-            logs = git.log().call();
-            int i = 0;
-            for (RevCommit rev : logs) {
-                commit = new JSONObject();
-                commit.put("commitRev", rev);
-                commit.put("commitName", rev.getName());
-                commit.put("commitID", rev.getId().getName());
-                commit.put("commit_message", rev.getShortMessage());
+        FileRepositoryBuilder builder = new FileRepositoryBuilder();
+        Repository repository = null;
+        try {
+            repository = builder.setGitDir((DAO.susi_skill_repo))
+                    .readEnvironment() // scan environment GIT_* variables
+                    .findGitDir() // scan up the file system tree
+                    .build();
 
-                commitsArray.put(i, commit);
-                i++;
+            try (Git git = new Git(repository)) {
+
+                Iterable<RevCommit> logs;
+
+                logs = git.log()
+                        .call();
+                int i = 0;
+                for (RevCommit rev : logs) {
+                    commit = new JSONObject();
+                    commit.put("commitRev", rev);
+                    commit.put("commitName", rev.getName());
+                    commit.put("commitID", rev.getId().getName());
+                    commit.put("commit_message", rev.getShortMessage());
+
+                    commitsArray.put(i, commit);
+                    i++;
+                }
+
+            } catch (GitAPIException e) {
+                e.printStackTrace();
             }
-            json.put("accepted", true);
-            json.put("commitsArray", commitsArray);
-
-        } catch (IOException | GitAPIException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
-        return new ServiceResponse(json);
+
+
+        return new ServiceResponse(commitsArray);
     }
 
 }

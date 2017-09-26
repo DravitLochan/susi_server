@@ -29,6 +29,7 @@ import java.util.regex.PatternSyntaxException;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 
+import org.eclipse.jetty.util.log.Log;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -180,7 +181,7 @@ public class SusiInference {
                 if (bang.length() == 0) bang = stdout.getBuffer().toString().trim();
                 return new SusiThought().addObservation("!", bang);
             } catch (Throwable e) {
-                DAO.severe(e);
+                Log.getLog().debug(e);
                 return new SusiThought(); // empty thought -> fail
             }
         });
@@ -204,7 +205,7 @@ public class SusiInference {
                 
                 return new SusiThought().addObservation("!", "");
             } catch (Throwable e) {
-                DAO.severe(e);
+                Log.getLog().debug(e);
                 return new SusiThought(); // empty thought -> fail
             }
         });

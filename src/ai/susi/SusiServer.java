@@ -45,8 +45,6 @@ import javax.servlet.Servlet;
 
 import ai.susi.server.api.aaa.*;
 import ai.susi.server.api.cms.*;
-import ai.susi.server.api.susi.*;
-import ai.susi.tools.MultipartConfigInjectionHandler;
 import io.swagger.jaxrs.listing.ApiListingResource;
 import org.apache.logging.log4j.LogManager;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
@@ -67,6 +65,7 @@ import org.eclipse.jetty.server.session.HashSessionManager;
 import org.eclipse.jetty.server.session.SessionHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ConcurrentHashSet;
+import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.security.Constraint;
@@ -85,6 +84,15 @@ import ai.susi.server.HttpsMode;
 import ai.susi.server.RemoteAccess;
 import ai.susi.server.api.learning.ConsoleLearning;
 import ai.susi.server.api.service.EmailSenderService;
+import ai.susi.server.api.susi.ConsoleService;
+import ai.susi.server.api.susi.GenericScraper;
+import ai.susi.server.api.susi.JsonPathTestService;
+import ai.susi.server.api.susi.MindService;
+import ai.susi.server.api.susi.RSSReaderService;
+import ai.susi.server.api.susi.StatusService;
+import ai.susi.server.api.susi.SusiService;
+import ai.susi.server.api.susi.UnansweredServlet;
+import ai.susi.server.api.susi.UserService;
 import ai.susi.server.api.vis.MapServlet;
 import ai.susi.server.api.vis.MarkdownServlet;
 import ai.susi.server.api.vis.PieChartServlet;
@@ -150,7 +158,7 @@ public class SusiServer {
         File dataFile = data.toFile();
         if (!dataFile.exists()) dataFile.mkdirs(); // should already be there since the start.sh script creates it
         
-        DAO.log("Starting SUSI initialization");
+        Log.getLog().info("Starting SUSI initialization");
 
         // prepare shutdown signal
         File pid = new File(dataFile, "susi.pid");
@@ -201,7 +209,7 @@ public class SusiServer {
         	checkServerPorts(httpPort, httpsPort);
         }
         catch(IOException e){
-        	DAO.severe(e.getMessage());
+        	Log.getLog().warn(e.getMessage());
 			System.exit(-1);
         }
         
@@ -210,8 +218,8 @@ public class SusiServer {
         	DAO.init(config, data);
         } catch(Exception e){
             e.printStackTrace();
-        	DAO.severe(e.getMessage());
-        	DAO.severe("Could not initialize DAO. Exiting.");
+        	Log.getLog().warn(e.getMessage());
+        	Log.getLog().warn("Could not initialize DAO. Exiting.");
         	System.exit(-1);
         }
         
@@ -219,7 +227,7 @@ public class SusiServer {
         try {
 			setupHttpServer(httpPort, httpsPort);
 		} catch (Exception e) {
-			DAO.severe(e.getMessage());
+			Log.getLog().warn(e.getMessage());
 			System.exit(-1);
 		}
         setServerHandler(dataFile);
@@ -231,7 +239,7 @@ public class SusiServer {
         // if this is not headless, we can open a browser automatically
         OS.openBrowser("http://127.0.0.1:" + httpPort + "/");
         
-        DAO.log("finished startup!");
+        Log.getLog().info("finished startup!");
         
         // signal to startup script
         if (startup.exists()){
@@ -246,13 +254,13 @@ public class SusiServer {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
                 try {
-                    DAO.log("catched main termination signal");
+                    Log.getLog().info("catched main termination signal");
                     SusiServer.caretaker.shutdown();
-                    try {SusiServer.server.stop();} catch (Exception e) {}
-                    try {DAO.close();} catch (Exception e) {}
-                    DAO.log("main terminated, goodby.");
+                    SusiServer.server.stop();
+                    DAO.close();
+                    Log.getLog().info("main terminated, goodby.");
 
-                    DAO.log("Shutting down log4j2");
+                    Log.getLog().info("Shutting down log4j2");
                     LogManager.shutdown();
 
                 } catch (Exception e) {
@@ -263,7 +271,7 @@ public class SusiServer {
         // ** wait for shutdown signal, do this with a kill HUP (default level 1, 'kill -1') signal **
         
         SusiServer.server.join();
-        DAO.log("server terminated");
+        Log.getLog().info("server terminated");
         
         // After this, the jvm processes all shutdown hooks and terminates then.
         // The main termination line is therefore inside the shutdown hook.
@@ -297,7 +305,7 @@ public class SusiServer {
         //uncommented lines for http2 (jetty 9.3 / java 8)        
         if(httpsMode.isGreaterOrEqualTo(HttpsMode.ON)){
 
-            DAO.log("HTTPS activated");
+            Log.getLog().info("HTTPS activated");
         	
         	String keySource = DAO.getConfig("https.keysource", "keystore");
             KeyStore keyStore;
@@ -305,7 +313,7 @@ public class SusiServer {
         	
         	//check for key source. Can be a java keystore or in pem format (gets converted automatically)
         	if("keystore".equals(keySource)){
-                DAO.log("Loading keystore from disk");
+                Log.getLog().info("Loading keystore from disk");
 
         		//use native keystore format
         		
@@ -319,7 +327,7 @@ public class SusiServer {
         		keystoreManagerPass = DAO.getConfig("keystore.password", "");
         	}
         	else if ("key-cert".equals(keySource)){
-                DAO.log("Importing keystore from key/cert files");
+                Log.getLog().info("Importing keystore from key/cert files");
         		//use more common pem format as used by openssl
 
                 //generate random password
@@ -359,7 +367,7 @@ public class SusiServer {
                 keyStore.setCertificateEntry(cert.getSubjectX500Principal().getName(), cert);
                 keyStore.setKeyEntry("defaultKey",key, password.toCharArray(), new Certificate[] {cert});
 
-        		DAO.log("Successfully imported keystore from key/cert files");
+        		Log.getLog().info("Successfully imported keystore from key/cert files");
         	}
         	else{
         		throw new Exception("Invalid option for https.keysource");
@@ -431,8 +439,8 @@ public class SusiServer {
 	            securityHandler.setLoginService(loginService);
         	}
         	
-        	if(redirect) DAO.log("Activated http-to-https redirect");
-        	if(auth) DAO.log("Activated basic http auth");
+        	if(redirect) Log.getLog().info("Activated http-to-https redirect");
+        	if(auth) Log.getLog().info("Activated basic http auth");
         }
         
         // Setup IPAccessHandler for blacklists
@@ -447,7 +455,7 @@ public class SusiServer {
                 blacklistedHosts.add(p < 0 ? b : b.substring(0, p));
             }
         } catch (IllegalArgumentException e) {
-            DAO.severe("bad blacklist:" + blacklist, e);
+            Log.getLog().warn("bad blacklist:" + blacklist, e);
         }
         
         WebAppContext htrootContext = new WebAppContext();
@@ -466,7 +474,6 @@ public class SusiServer {
                 PasswordResetService.class,
                 PublicKeyRegistrationService.class,
                 DownloadDataSettings.class,
-                ShowAdminService.class,
                 SignUpService.class,
                 TopMenuService.class,
                 PasswordChangeService.class,
@@ -479,7 +486,6 @@ public class SusiServer {
                 CreateSkillService.class,
                 PostSkillJsonService.class,
                 PostSkillTxtService.class,
-                ResendVerificationLinkService.class,
                 ModelListService.class,
                 LanguageListService.class,
                 ListUserSettings.class,
@@ -496,22 +502,13 @@ public class SusiServer {
                 ModifySkillService.class,
                 HistorySkillService.class,
                 GetCommitHistory.class,
-                DescriptionSkillService.class,
-                GetSkillsImage.class,
-                LinkPreviewService.class,
-                GetSkillMetadataService.class,
-                GetFileAtCommitID.class,
-                GetSkillsByAuthor.class,
-                SkillsToBeDeleted.class,
-                GetSkillDataUrl.class,
-                UndoDeleteSkillService.class,
                 // susi search aggregation services
                 ConsoleService.class,
                 RSSReaderService.class,
                 SusiService.class,
                 MindService.class,
                 UserService.class,
-                GetAllUserroles.class,
+                
                 // learning services
                 ConsoleLearning.class,
                 
@@ -522,20 +519,19 @@ public class SusiServer {
                 ChangeUserRoles.class,
 
                 //Get all Users
-                GetUsers.class,
+                GetAllUsers.class,
 
                 //Groups
                 GetGroupDetails.class,
                 CreateGroupService.class,
                 GetAllGroups.class,
                 GetSkillRatingService.class
-
         };
         for (Class<? extends Servlet> service: services)
             try {
                 servletHandler.addServlet(service, ((APIHandler) (service.newInstance())).getAPIPath());
             } catch (InstantiationException | IllegalAccessException e) {
-                DAO.severe(service.getName() + " instantiation error", e);
+                Log.getLog().warn(service.getName() + " instantiation error", e);
                 e.printStackTrace();
             }
         
@@ -599,10 +595,8 @@ public class SusiServer {
         sessions.setHandler(gzipHandler);
         securityHandler.setHandler(sessions);
         ipaccess.setHandler(securityHandler);
-        // Multipart Configuration
-        MultipartConfigInjectionHandler multipartConfigInjectionHandler =
-                new MultipartConfigInjectionHandler();
         handlerCollection.addHandler(ipaccess);
+
 
         ContextHandlerCollection contexts = new ContextHandlerCollection();
 
@@ -616,8 +610,8 @@ public class SusiServer {
 
         servletHandler.addServlet(holder, "/docs/*");
         handlerCollection.addHandler(contexts);
-        multipartConfigInjectionHandler.setHandler(handlerCollection);
-        SusiServer.server.setHandler(multipartConfigInjectionHandler);
+
+        SusiServer.server.setHandler(handlerCollection);
 
     }
     
@@ -626,27 +620,33 @@ public class SusiServer {
     	// check http port
         if(!httpsMode.equals(HttpsMode.ONLY)){
 	        ServerSocket ss = null;
-	        checkPort(httpPort, ss);
+	        try {
+	            ss = new ServerSocket(httpPort);
+	            ss.setReuseAddress(true);
+	            ss.setReceiveBufferSize(65536);
+	        } catch (IOException e) {
+	            // the socket is already occupied by another service
+	            throw new IOException("port " + httpPort + " is already occupied by another service, maybe another SUSI is running on this port already. exit.");
+	        } finally {
+	            // close the socket again
+	            if (ss != null) ss.close();
+	        }
         }
-
+        
         // check https port
         if(httpsMode.isGreaterOrEqualTo(HttpsMode.ON)){
 	        ServerSocket sss = null;
-	        checkPort(httpsPort, sss);
-        }
-    }
-
-    private static void checkPort(int port, ServerSocket ss) throws IOException {
-        try {
-            ss = new ServerSocket(port);
-            ss.setReuseAddress(true);
-            ss.setReceiveBufferSize(65536);
-        } catch (IOException e) {
-            // the socket is already occupied by another service
-            throw new IOException("port " + port + " is already occupied by another service, maybe another SUSI is running on this port already. exit.");
-        } finally {
-            // close the socket again
-            if (ss != null) ss.close();
+	        try {
+	            sss = new ServerSocket(httpsPort);
+	            sss.setReuseAddress(true);
+	            sss.setReceiveBufferSize(65536);
+	        } catch (IOException e) {
+	            // the socket is already occupied by another service
+	        	throw new IOException("port " + httpsPort + " is already occupied by another service, maybe another SUSI is running on this port already. exit.");
+	        } finally {
+	            // close the socket again
+	            if (sss != null) sss.close();
+	        }
         }
     }
 }
